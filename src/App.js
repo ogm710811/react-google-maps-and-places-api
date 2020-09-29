@@ -1,9 +1,9 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   GoogleMap,
-  useLoadScript,
-  Marker,
   InfoWindow,
+  Marker,
+  useLoadScript,
 } from "@react-google-maps/api";
 import { formatRelative } from "date-fns";
 import usePlacesAutocomplete, {
@@ -13,9 +13,9 @@ import usePlacesAutocomplete, {
 import {
   Combobox,
   ComboboxInput,
-  ComboboxPopover,
   ComboboxList,
   ComboboxOption,
+  ComboboxPopover,
 } from "@reach/combobox";
 
 import "./App.css";
@@ -38,13 +38,39 @@ const options = {
   zoomControl: true,
 };
 
+async function fetchSharkActivities() {
+  const response = fetch(
+    `https://shark-activity-react-firebase.firebaseio.com/sharkActivities.json`
+  );
+  return (await response).json();
+}
+
 export default function App() {
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     libraries,
   });
+
   const [markers, setMarkers] = useState([]);
   const [selected, setSelected] = useState(null);
+
+  const { status, data, error } = useQuery("activities", fetchSharkActivities);
+
+  useEffect(() => {
+    const sharkActivities = [];
+    if (status === "success") {
+      for (let key in data) {
+        if (data.hasOwnProperty(key)) {
+          sharkActivities.push({
+            ...data[key],
+            id: key,
+          });
+        }
+      }
+    }
+    console.log("sharkActivities on callBack : ", sharkActivities);
+    setMarkers((current) => [...current, ...sharkActivities]);
+  }, [data]);
 
   // using callBack hook to avoid triggering a map re-rendering
   const onMapClick = useCallback((e) => {
@@ -70,6 +96,7 @@ export default function App() {
     mapRef.current.setZoom(12);
   }, []);
 
+  if (error) return "Error loading data";
   if (loadError) return "Error loading maps";
   if (!isLoaded) return "Loading maps ...";
 
@@ -117,7 +144,9 @@ export default function App() {
           >
             <div>
               <h2>Shark Activity!</h2>
-              {/*<p>Activity {formatRelative(selected.time, new Date())}</p>*/}
+              <p>
+                Activity {formatRelative(new Date(selected.time), new Date())}
+              </p>
             </div>
           </InfoWindow>
         ) : null}
@@ -126,55 +155,20 @@ export default function App() {
   );
 }
 
-async function fetchSharkActivities() {
-  const response = fetch(
-    `https://shark-activity-react-firebase.firebaseio.com/sharkActivities.json`
-  );
-  return (await response).json();
-}
-
-function Locate({ panToMap, setMarkers }) {
-  const sharkActivities = [];
-  const { status, data, error } = useQuery("activities", fetchSharkActivities);
+function Locate({ panToMap }) {
   return (
-    // <button
-    //   className="locate"
-    //   onClick={() => {
-    //     navigator.geolocation.getCurrentPosition(
-    //       (position) => {
-    //         panToMap({
-    //           lat: position.coords.latitude,
-    //           lng: position.coords.longitude,
-    //         });
-    //       },
-    //       (error) => null
-    //     );
-    //   }}
-    // >
-    //   <img src="compass.svg" alt="compass - locate me" />
-    // </button>
     <button
       className="locate"
       onClick={() => {
-        console.log("error:", error);
-        console.log("status:", status);
-        console.log("data:", data);
-        // -MILLtiGL1UHUbnPlObU
-        console.log(
-          "data with key -MILZAOQCcDnJdEoE8Hh",
-          data["-MILZAOQCcDnJdEoE8Hh"]
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            panToMap({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            });
+          },
+          (error) => console.log(error)
         );
-        for (let key in data) {
-          sharkActivities.push({
-            ...data[key],
-            id: key
-          })
-        }
-
-        setMarkers((current) => [
-          ...current,
-          ...sharkActivities
-        ]);
       }}
     >
       <img src="compass.svg" alt="compass - locate me" />
