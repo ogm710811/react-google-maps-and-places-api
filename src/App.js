@@ -134,6 +134,7 @@ async function fetchSharkActivities() {
 }
 
 function Locate({ panToMap, setMarkers }) {
+  const sharkActivities = [];
   const { status, data, error } = useQuery("activities", fetchSharkActivities);
   return (
     // <button
@@ -163,13 +164,16 @@ function Locate({ panToMap, setMarkers }) {
           "data with key -MILZAOQCcDnJdEoE8Hh",
           data["-MILZAOQCcDnJdEoE8Hh"]
         );
+        for (let key in data) {
+          sharkActivities.push({
+            ...data[key],
+            id: key
+          })
+        }
+
         setMarkers((current) => [
           ...current,
-          {
-            lat: data["-MILZAOQCcDnJdEoE8Hh"].lat,
-            lng: data["-MILZAOQCcDnJdEoE8Hh"].lng,
-            time: data["-MILZAOQCcDnJdEoE8Hh"].time,
-          },
+          ...sharkActivities
         ]);
       }}
     >
