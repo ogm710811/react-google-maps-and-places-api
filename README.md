@@ -2,6 +2,7 @@
 
 This project builds a "Shark Activity" React App where we cover how Google Maps, Google Places, 
 and browser geolocation works. All using modern React (hooks) and up to date packages for 2020.
+
 In addition, we cover how to use react-query mutation functionality to post data to the server,
 and update the UI with fresh content. We cover three approaches to UI updates, going from easiest
 but worst performing, to most complicated but best performing. [Refetching Data, Response Cache Update, 

@@ -84,11 +84,11 @@ export default function App() {
   }, [data]);
 
   /***
-   * useMutation with Refetching Data example:
+   * useMutation with Re-fetching Data example:
    */
   // some downsides are:
   // the fetching is slow since the onSuccess has to wait for the mutation to finish
-  // but also has to refetshing the data from service [open network tab on devtools and
+  // but also has to re-fetching the data from service [open network tab on devtools and
   // see 2 calls
   /***
    const [mutate] = useMutation(createSharkActivity, {
@@ -222,7 +222,9 @@ export default function App() {
           >
             <div>
               <h2>Shark Activity!</h2>
-              <p>Activity {formatRelative(new Date(selected.time), new Date())}</p>
+              <p>
+                Activity {formatRelative(new Date(selected.time), new Date())}
+              </p>
               <p>Posted By: {selected.postBy}</p>
             </div>
           </InfoWindow>
