@@ -21,7 +21,7 @@ import {
 import "./App.css";
 import "@reach/combobox/styles.css";
 import mapStyles from "./mapStyles";
-import { useQuery } from "react-query";
+import { queryCache, useMutation, useQuery } from "react-query";
 
 const libraries = ["places"];
 const mapContainerStyle = {
@@ -45,6 +45,18 @@ async function fetchSharkActivities() {
   return (await response).json();
 }
 
+async function createSharkActivity(newActivity) {
+  const response = await fetch(
+    `https://shark-activity-react-firebase.firebaseio.com/sharkActivities.json`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newActivity),
+    }
+  );
+  return (await response).json();
+}
+
 export default function App() {
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
@@ -55,7 +67,6 @@ export default function App() {
   const [selected, setSelected] = useState(null);
 
   const { status, data, error } = useQuery("activities", fetchSharkActivities);
-
   useEffect(() => {
     const sharkActivities = [];
     if (status === "success") {
@@ -72,16 +83,83 @@ export default function App() {
     setMarkers((current) => [...current, ...sharkActivities]);
   }, [data]);
 
+  /***
+   * useMutation with Refetching Data example:
+   */
+  // some downsides are:
+  // the fetching is slow since the onSuccess has to wait for the mutation to finish
+  // but also has to refetshing the data from service [open network tab on devtools and
+  // see 2 calls
+  /***
+   const [mutate] = useMutation(createSharkActivity, {
+      onSuccess: () => {
+        queryCache.refetchQueries("activities");
+      },
+    });
+   /***
+   * end example:
+   */
+
+  /***
+   * useMutation with Response Cache Update example:
+   */
+  // onSuccess function receives the data we are posting to server in createSharkActivity
+  // with setQueryData we can manipulate the data in the cache
+  // giving the proper key "activities" we can access the cache (prevActivities) and update it
+  // with the new value of activity
+
+  const [mutate] = useMutation(createSharkActivity, {
+    onSuccess: (newActivity) => {
+      queryCache.setQueryData("activities", (prevActivitiesData) => [
+        ...prevActivitiesData,
+        newActivity,
+      ]);
+    },
+  });
+  /***
+   * end example:
+   */
+
+  /***
+   * useMutation with Optimistic Cache Update example:
+   */
+  // Optimistic Cache update has 3 lifecycles:
+  // onMutate: receives the new data that will send to server
+  // onError: gives the error, the new Data and a rollback function that when error you can rollback the optimistic UI update
+  // onSettled: after everything goes OK we update the data from the cache
+
+  // Will need to be review it since it throws an error on line 136
+  // " object is not iterable (cannot read property Symbol(Symbol.iterator))"
+  /***
+   const [mutate] = useMutation(createSharkActivity, {
+      onMutate: (newActivity) => {
+        queryCache.cancelQueries("activities");
+        const snapshot = queryCache.getQueryData("activities");
+        queryCache.setQueryData("activities", (prevActivitiesData) => [
+          ...prevActivitiesData,
+          newActivity,
+        ]);
+  
+        return () => queryCache.setQueryData("activities", snapshot);
+      },
+      onError: (error, newActivity, rollback) =>
+        queryCache.setQueryData("activities", rollback),
+      onSettled: () => queryCache.refetchQueries("activities"),
+    });
+   /***
+   * end example:
+   */
+
   // using callBack hook to avoid triggering a map re-rendering
   const onMapClick = useCallback((e) => {
-    setMarkers((current) => [
-      ...current,
-      {
-        lat: e.latLng.lat(),
-        lng: e.latLng.lng(),
-        time: new Date(),
-      },
-    ]);
+    const newActivity = {
+      lat: e.latLng.lat(),
+      lng: e.latLng.lng(),
+      time: new Date(),
+      postBy: "user name",
+    };
+    setMarkers((prev) => [...prev, newActivity]);
+    mutate(newActivity);
   }, []);
 
   // adding a map reference when map loading abd using callBack hook
@@ -121,7 +199,7 @@ export default function App() {
       >
         {markers.map((marker) => (
           <Marker
-            key={marker.time}
+            key={Math.random() * 100}
             position={{ lat: marker.lat, lng: marker.lng }}
             icon={{
               url: "/shark.svg",
@@ -144,9 +222,8 @@ export default function App() {
           >
             <div>
               <h2>Shark Activity!</h2>
-              <p>
-                Activity {formatRelative(new Date(selected.time), new Date())}
-              </p>
+              <p>Activity {formatRelative(new Date(selected.time), new Date())}</p>
+              <p>Posted By: {selected.postBy}</p>
             </div>
           </InfoWindow>
         ) : null}
